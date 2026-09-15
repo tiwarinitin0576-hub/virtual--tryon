@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Virtual Try-On for Boutiques</title>
+<meta name="theme-color" content="#241220">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --ink: #241220;
+    --ink-soft: #3a2436;
+    --ivory: #FAF6F0;
+    --card: #ffffff;
+    --marigold: #E3A335;
+    --marigold-dark: #C9860F;
+    --clay: #B85C6B;
+    --text: #211A1D;
+    --text-soft: #6b5d63;
+    --line: #EAE0D6;
+    --success: #3f7d5c;
+    --danger: #b8433f;
+    --radius: 20px;
+    --tag-radius: 6px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background: var(--ivory);
+    color: var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    margin:0;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+
+  #app{
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    display:flex;
+    flex-direction:column;
+    background: var(--ivory);
+    position:relative;
+  }
+
+  /* top bar with thread-stitch progress */
+  .topbar{
+    padding: 18px 20px 14px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background: var(--ink);
+    color: var(--ivory);
+    border-radius: 0 0 22px 22px;
+  }
+  .topbar .brand{
+    font-family:'Fraunces', serif;
+    font-size:15px;
+    font-weight:600;
+    color: var(--ivory);
+    flex:1;
+  }
+  .stitch{
+    display:flex;
+    gap:5px;
+    align-items:center;
+  }
+  .stitch span{
+    width:14px; height:3px; border-radius:2px;
+    background: rgba(250,246,240,0.25);
+    transition: background .25s ease, width .25s ease;
+  }
+  .stitch span.done{ background: var(--marigold); }
+  .stitch span.now{ background: var(--marigold); width:22px; }
+
+  .screen{
+    display:none;
+    flex:1;
+    flex-direction:column;
+    padding: 26px 22px 100px;
+    animation: fadeUp .35s ease;
+  }
+  .screen.active{ display:flex; }
+  @keyframes fadeUp{
+    from{ opacity:0; transform: translateY(10px);}
+    to{ opacity:1; transform: translateY(0);}
+  }
+
+  .eyebrow-tag{
+    display:inline-block;
+    font-size:12.5px;
+    color: var(--clay);
+    background: #FBEFE9;
+    padding: 4px 10px;
+    border-radius: var(--tag-radius);
+    margin-bottom:14px;
+    width:fit-content;
+    font-weight:600;
+  }
+
+  p.lead{
+    color: var(--text-soft);
+    font-size:15.5px;
+    line-height:1.55;
+    margin: 10px 0 0;
+  }
+
+  .hero-mark{
+    width:100%;
+    aspect-ratio: 4/3;
+    border-radius: var(--radius);
+    background: linear-gradient(155deg, #2f1c2b, var(--ink) 60%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin: 22px 0 8px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero-mark svg{ width:46%; opacity:0.9; }
+
+  .btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    width:100%;
+    padding: 16px 20px;
+    border-radius: 14px;
+    border:none;
+    font-family:'Inter',sans-serif;
+    font-size:16px;
+    font-weight:600;
+    cursor:pointer;
+    transition: transform .12s ease, opacity .12s ease;
+    -webkit-appearance:none;
+  }
+  .btn:active{ transform: scale(0.98); }
+  .btn-primary{ background: var(--ink); color: var(--ivory); }
+  .btn-accent{ background: var(--marigold); color: var(--ink); }
+  .btn-outline{ background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+  .btn-ghost{ background: transparent; color: var(--text-soft); font-weight:500; padding:12px; }
+  .btn[disabled]{ opacity:0.4; pointer-events:none; }
+
+  .btn-row{ display:flex; gap:10px; }
+  .btn-row .btn{ flex:1; }
+
+  .spacer{ flex:1; }
+
+  .stack{ display:flex; flex-direction:column; gap:12px; margin-top:18px; }
+
+  input[type=file]{ display:none; }
+
+  .photo-slot{
+    width:100%;
+    aspect-ratio: 3/4;
+    border-radius: var(--radius);
+    border: 1.5px dashed #d9c9bb;
+    background: #fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    margin-top:16px;
+    position:relative;
+  }
+  .photo-slot img{ width:100%; height:100%; object-fit:cover; }
+  .photo-slot .hint{
+    text-align:center;
+    color: var(--text-soft);
+    font-size:13.5px;
+    padding:0 30px;
+  }
+  .photo-slot .hint svg{ width:34px; height:34px; margin-bottom:8px; opacity:0.5; }
+
+  .note-box{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px 16px;
+    font-size:13.5px;
+    color: var(--text-soft);
+    margin-top:16px;
+    line-height:1.5;
+  }
+  .note-box b{ color: var(--text); }
+
+  .cat-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:12px;
+    margin-top:18px;
+  }
+  .cat-card{
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:16px;
+    padding:18px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .cat-card .emoji{ font-size:26px; display:block; margin-bottom:8px; }
+  .cat-card span.label{ font-weight:600; font-size:14.5px; }
+  .cat-card.selected{ border-color: var(--marigold); background: #FFF7E8; }
+
+  .review-pair{ display:flex; gap:10px; margin-top:16px; }
+  .review-pair .col{ flex:1; }
+  .review-pair img{ width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:14px; }
+  .review-pair .col-label{ font-size:12.5px; color: var(--text-soft); margin-bottom:6px; font-weight:600; }
+  .plus-divider{ display:flex; align-items:center; justify-content:center; width:24px; font-family:'Fraunces',serif; font-size:20px; color: var(--clay); }
+
+  /* processing */
+  .loader-wrap{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; }
+  .loom{
+    width:96px; height:96px; position:relative;
+  }
+  .loom svg{ width:100%; height:100%; animation: spin 1.4s linear infinite; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+  .loader-text{ text-align:center; }
+  .loader-text h3{ font-size:19px; margin-bottom:6px; }
+  .loader-text p{ color: var(--text-soft); font-size:14px; margin:0; }
+
+  .result-frame{
+    width:100%;
+    border-radius: var(--radius);
+    overflow:hidden;
+    margin-top:14px;
+    position:relative;
+    background:#111;
+  }
+  .result-frame img{ width:100%; display:block; }
+  .demo-badge{
+    position:absolute; top:12px; left:12px;
+    background: rgba(35,18,32,0.85);
+    color: var(--marigold);
+    font-size:11.5px;
+    font-weight:700;
+    padding: 6px 10px;
+    border-radius:8px;
+    letter-spacing:0.02em;
+  }
+
+  .icon-btn{ width:20px; height:20px; }
+
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform: translateX(-50%);
+    background: var(--ink); color: var(--ivory);
+    padding: 12px 18px; border-radius: 12px; font-size:14px;
+    max-width: 88%; text-align:center;
+    opacity:0; pointer-events:none; transition: opacity .25s ease, bottom .25s ease;
+    z-index: 999;
+  }
+  .toast.show{ opacity:1; bottom:38px; }
+
+  .bottom-bar{
+    position:sticky; bottom:0;
+    padding: 14px 22px calc(18px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--ivory) 60%, rgba(250,246,240,0));
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="topbar">
+    <div class="brand">Virtual Try-On</div>
+    <div class="stitch" id="stitch"></div>
+  </div>
+
+  <!-- SCREEN 1: WELCOME -->
+  <section class="screen active" data-screen="1">
+    <span class="eyebrow-tag">Boutique demo</span>
+    <h1 style="font-size:30px; line-height:1.15;">Try before<br>you buy.</h1>
+    <p class="lead">Apni photo lo, dukaan ka koi bhi kapda try karo — apne asli look mein, bina badle.</p>
+    <div class="hero-mark">
+      <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M60 8 L44 22 L30 18 L20 34 L34 42 V104 H86 V42 L100 34 L90 18 L76 22 Z" stroke="#E3A335" stroke-width="2.5" fill="none"/>
+        <circle cx="60" cy="58" r="14" stroke="#B85C6B" stroke-width="2" fill="none"/>
+      </svg>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn btn-accent" onclick="goTo(2)">Start Virtual Try-On</button>
+    <div class="note-box" style="margin-top:14px;">Koi account banane ki zaroorat nahi. Photos sirf isi session ke liye use hoti hain.</div>
+  </section>
+
+  <!-- SCREEN 2: CUSTOMER PHOTO -->
+  <section class="screen" data-screen="2">
+    <span class="eyebrow-tag">Step 1 of 4</span>
+    <h2 style="font-size:24px;">Apni photo lo</h2>
+    <p class="lead">Achi roshni mein khade hoke, poora body dikhne wali photo lo.</p>
+
+    <div class="photo-slot" id="slot-person">
+      <div class="hint" id="hint-person">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="3.5"/><path d="M9 7l1-3h4l1 3"/></svg>
+        <div>Photo yahan dikhegi</div>
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-top:16px;">
+      <button class="btn btn-outline" onclick="triggerCapture('person', true)">Camera kholo</button>
+      <button class="btn btn-outline" onclick="triggerCapture('person', false)">Gallery se</button>
+    </div>
+    <input type="file" id="input-person-cam" accept="image/*" capture="user">
+    <input type="file" id="input-person-gal" accept="image/*">
+
+    <div class="spacer"></div>
+    <button class="btn btn-primary" id="next-2" disabled onclick="goTo(3)">Aage badho</button>
+  </section>
+
+  <!-- SCREEN 3: CATEGORY -->
+  <section class="screen" data-screen="3">
+    <span class="eyebrow-tag">Step 2 of 4</span>
+    <h2 style="font-size:24px;">Kapda kaunsa hai?</h2>
+    <p class="lead">Category chuno jisko try karna hai.</p>
+    <div class="cat-grid" id="cat-grid">
+      <div class="cat-card" data-cat="Kurti"><span class="emoji">👗</span><span class="label">Kurti</span></div>
+      <div class="cat-card" data-cat="Shirt"><span class="emoji">👔</span><span class="label">Shirt</span></div>
+      <div class="cat-card" data-cat="T-Shirt"><span class="emoji">👕</span><span class="label">T-Shirt</span></div>
+      <div class="cat-card" data-cat="Pant"><span class="emoji">👖</span><span class="label">Pant</span></div>
+      <div class="cat-card" data-cat="Jeans"><span class="emoji">🩳</span><span class="label">Jeans</span></div>
+      <div class="cat-card" data-cat="Dress"><span class="emoji">👘</span><span class="label">Dress</span></div>
+      <div class="cat-card" data-cat="Other" style="grid-column: span 2;"><span class="emoji">🧥</span><span class="label">Other</span></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn btn-primary" id="next-3" disabled onclick="goTo(4)">Aage badho</button>
+  </section>
+
+  <!-- SCREEN 4: GARMENT PHOTO -->
+  <section class="screen" data-screen="4">
+    <span class="eyebrow-tag">Step 3 of 4</span>
+    <h2 style="font-size:24px;">Kapde ki photo lo</h2>
+    <p class="lead">Dukaan mein maujood asli kapde ki saaf photo lo.</p>
+
+    <div class="photo-slot" id="slot-garment">
+      <div class="hint" id="hint-garment">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 4l4-1 4 1 3 3-3 3-1-1v11H9V9L8 10 5 7z"/></svg>
+        <div>Garment photo yahan dikhegi</div>
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-top:16px;">
+      <button class="btn btn-outline" onclick="triggerCapture('garment', true)">Camera kholo</button>
+      <button class="btn btn-outline" onclick="triggerCapture('garment', false)">Gallery se</button>
+    </div>
+    <input type="file" id="input-garment-cam" accept="image/*" capture="environment">
+    <input type="file" id="input-garment-gal" accept="image/*">
+
+    <div class="spacer"></div>
+    <button class="btn btn-primary" id="next-4" disabled onclick="goTo(5)">Aage badho</button>
+  </section>
+
+  <!-- SCREEN 5: REVIEW -->
+  <section class="screen" data-screen="5">
+    <span class="eyebrow-tag">Step 4 of 4</span>
+    <h2 style="font-size:24px;">Check kar lo</h2>
+    <p class="lead">Category: <b id="review-cat" style="color:var(--text)">—</b></p>
+    <div class="review-pair">
+      <div class="col"><div class="col-label">Aap</div><img id="review-person" src=""></div>
+      <div class="plus-divider">+</div>
+      <div class="col"><div class="col-label">Garment</div><img id="review-garment" src=""></div>
+    </div>
+    <div class="note-box">Dono photos sirf is try-on ke liye use hongi.</div>
+    <div class="spacer"></div>
+    <button class="btn btn-accent" onclick="startProcessing()">Try This Outfit</button>
+    <button class="btn btn-ghost" onclick="goTo(2)">Photos badlo</button>
+  </section>
+
+  <!-- SCREEN 6: PROCESSING -->
+  <section class="screen" data-screen="6">
+    <div class="loader-wrap">
+      <div class="loom">
+        <svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" stroke="#EAE0D6" stroke-width="4" fill="none"/><path d="M25 5 A20 20 0 0 1 45 25" stroke="#E3A335" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <div class="loader-text">
+        <h3>AI is creating your virtual try-on…</h3>
+        <p id="proc-sub">Photos taiyar ho rahi hain</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREEN 7: RESULT -->
+  <section class="screen" data-screen="7">
+    <span class="eyebrow-tag" style="background:#FFF3D6; color:var(--marigold-dark);">Result</span>
+    <h2 style="font-size:24px;">Yeh raha aapka look</h2>
+    <div class="result-frame">
+      <span class="demo-badge" id="demo-badge">DEMO MODE — Real AI abhi connect nahi hai</span>
+      <img id="result-img" src="">
+    </div>
+    <div class="note-box" id="result-note">Yeh ek <b>demo preview</b> hai (aapki aur garment ki photo, side-by-side saved). Asli AI-generated try-on image production mein ek real Virtual Try-On API se aayegi.</div>
+    <div class="spacer"></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="saveResult()">Save</button>
+      <button class="btn btn-outline" onclick="shareResult()">Share</button>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn btn-primary" onclick="resetFlow()">Try Another</button>
+      <button class="btn btn-accent" onclick="buyOrder()">Buy / Order</button>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const state = { screen:1, personImg:null, garmentImg:null, category:null };
+  const totalSteps = 7;
+
+  function buildStitch(){
+    const el = document.getElementById('stitch');
+    el.innerHTML = '';
+    for(let i=1;i<=totalSteps;i++){
+      const s = document.createElement('span');
+      if(i < state.screen) s.classList.add('done');
+      if(i === state.screen) s.classList.add('now');
+      el.appendChild(s);
+    }
+  }
+
+  function goTo(n){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.querySelector('.screen[data-screen="'+n+'"]').classList.add('active');
+    state.screen = n;
+    buildStitch();
+    window.scrollTo(0,0);
+  }
+
+  function showToast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 2200);
+  }
+
+  function triggerCapture(kind, useCamera){
+    const id = 'input-' + kind + (useCamera ? '-cam' : '-gal');
+    document.getElementById(id).click();
+  }
+
+  // Re-encodes any uploaded photo to a capped-size JPEG. This keeps the
+  // /api/tryon request small and fast, and also guards against invalid /
+  // huge / unsupported image files reaching the server or FASHN.
+  function resizeImage(dataUrl, maxDim){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if(width <= 0 || height <= 0){ reject(new Error('invalid-image')); return; }
+        const scale = Math.min(1, maxDim / Math.max(width, height));
+        const w = Math.round(width * scale);
+        const h = Math.round(height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.88));
+      };
+      img.onerror = () => reject(new Error('invalid-image'));
+      img.src = dataUrl;
+    });
+  }
+
+  function handleFile(kind, file){
+    if(!file) return;
+    if(!file.type.startsWith('image/')){
+      showToast('Yeh image file nahi hai. Please photo chuno.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async e => {
+      let dataUrl;
+      try{
+        dataUrl = await resizeImage(e.target.result, 1280);
+      } catch(err){
+        showToast('Yeh photo kharab hai ya support nahi hai. Doosri photo try karein.');
+        return;
+      }
+      if(kind === 'person'){
+        state.personImg = dataUrl;
+        document.getElementById('slot-person').innerHTML = '<img src="'+dataUrl+'">';
+        document.getElementById('next-2').disabled = false;
+      } else {
+        state.garmentImg = dataUrl;
+        document.getElementById('slot-garment').innerHTML = '<img src="'+dataUrl+'">';
+        document.getElementById('next-4').disabled = false;
+      }
+    };
+    reader.onerror = () => showToast('Photo load nahi ho payi. Dobara try karein.');
+    reader.readAsDataURL(file);
+  }
+
+  ['person','garment'].forEach(kind=>{
+    ['cam','gal'].forEach(mode=>{
+      document.getElementById('input-'+kind+'-'+mode).addEventListener('change', e=>{
+        handleFile(kind, e.target.files[0]);
+      });
+    });
+  });
+
+  document.querySelectorAll('.cat-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      document.querySelectorAll('.cat-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.category = card.dataset.cat;
+      document.getElementById('next-3').disabled = false;
+    });
+  });
+
+  function goToReview(){
+    document.getElementById('review-cat').textContent = state.category || '—';
+    document.getElementById('review-person').src = state.personImg;
+    document.getElementById('review-garment').src = state.garmentImg;
+  }
+  const origGoTo = goTo;
+  goTo = function(n){
+    if(n === 5) goToReview();
+    origGoTo(n);
+  };
+
+  async function startProcessing(){
+    goTo(6);
+    const subs = ['Photos analyse ho rahi hain…','FASHN AI garment fit laga raha hai…','Final touch ho raha hai…'];
+    let i=0;
+    const sub = document.getElementById('proc-sub');
+    const iv = setInterval(()=>{ sub.textContent = subs[i % subs.length]; i++; }, 1400);
+
+    // Client-side safety timeout — separate from the server's own 45s FASHN
+    // timeout — in case the network hangs entirely.
+    const controller = new AbortController();
+    const abortTimer = setTimeout(()=>controller.abort(), 60000);
+
+    try{
+      const res = await fetch('/api/tryon', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          personImage: state.personImg,
+          garmentImage: state.garmentImg,
+          category: state.category
+        }),
+        signal: controller.signal
+      });
+
+      const data = await res.json().catch(()=>({}));
+      clearInterval(iv);
+      clearTimeout(abortTimer);
+
+      if(!res.ok){
+        throw new Error(data.error || 'Try-on generate nahi ho paya.');
+      }
+
+      if(data.demo){
+        buildDemoResult();
+      } else if(data.imageUrl){
+        showRealResult(data.imageUrl);
+      } else {
+        throw new Error('Result nahi mila. Dobara try karein.');
+      }
+      goTo(7);
+
+    } catch(err){
+      clearInterval(iv);
+      clearTimeout(abortTimer);
+      const msg = err.name === 'AbortError'
+        ? 'Bahut zyada time lag raha hai (timeout). Dobara try karein.'
+        : (err.message || 'Kuch galat ho gaya. Dobara try karein.');
+      showToast(msg);
+      goTo(5); // back to Review so they can retry without retaking photos
+    }
+  }
+
+  function showRealResult(imageUrl){
+    document.getElementById('demo-badge').style.display = 'none';
+    document.getElementById('result-note').innerHTML = '<b>FASHN AI Virtual Try-On</b> se generate kiya gaya real result.';
+    document.getElementById('result-img').src = imageUrl;
+  }
+
+  function buildDemoResult(){
+    document.getElementById('demo-badge').style.display = 'inline-block';
+    document.getElementById('result-note').innerHTML = 'Yeh ek <b>demo preview</b> hai (aapki aur garment ki photo, side-by-side saved). FASHN_API_KEY set karte hi yahan real AI-generated result aayega.';
+    // DEMO MODE ONLY: composites the two photos side-by-side on a canvas.
+    // This is NOT an AI-generated try-on — see /services/virtualTryOn notes below.
+    const canvas = document.createElement('canvas');
+    const w = 600, h = 800;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#161016';
+    ctx.fillRect(0,0,w,h);
+
+    const p = new Image(); const g = new Image();
+    let loaded = 0;
+    function done(){
+      loaded++;
+      if(loaded === 2){
+        ctx.drawImage(p, 0, 0, w/2, h);
+        ctx.drawImage(g, w/2, 0, w/2, h);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(0, h-56, w, 56);
+        ctx.fillStyle = '#E3A335';
+        ctx.font = '600 20px Inter, sans-serif';
+        ctx.fillText('Demo composite — ' + (state.category || ''), 18, h-22);
+        document.getElementById('result-img').src = canvas.toDataURL('image/jpeg', 0.92);
+      }
+    }
+    p.onload = done; g.onload = done;
+    p.src = state.personImg; g.src = state.garmentImg;
+  }
+
+  function saveResult(){
+    const img = document.getElementById('result-img').src;
+    if(!img){ showToast('Result abhi taiyar nahi hai.'); return; }
+    const a = document.createElement('a');
+    a.href = img;
+    a.download = 'virtual-tryon-demo.jpg';
+    a.click();
+    showToast('Photo save ho gayi.');
+  }
+
+  async function shareResult(){
+    const img = document.getElementById('result-img').src;
+    if(!img){ showToast('Result abhi taiyar nahi hai.'); return; }
+    try{
+      const res = await fetch(img);
+      const blob = await res.blob();
+      const file = new File([blob], 'virtual-tryon.jpg', {type:'image/jpeg'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:'Mera Virtual Try-On'});
+      } else {
+        showToast('Is browser mein direct share support nahi hai — Save karke share karein.');
+      }
+    } catch(e){
+      showToast('Share nahi ho paya. Save karke try karein.');
+    }
+  }
+
+  function buyOrder(){
+    showToast('Yeh placeholder hai — asli app mein yahan shopkeeper ko order/enquiry jaayegi.');
+  }
+
+  function resetFlow(){
+    state.personImg = null; state.garmentImg = null; state.category = null;
+    document.getElementById('slot-person').innerHTML = document.getElementById('hint-person').outerHTML;
+    document.getElementById('slot-garment').innerHTML = document.getElementById('hint-garment').outerHTML;
+    document.getElementById('next-2').disabled = true;
+    document.getElementById('next-3').disabled = true;
+    document.getElementById('next-4').disabled = true;
+    document.querySelectorAll('.cat-card').forEach(c=>c.classList.remove('selected'));
+    goTo(1);
+  }
+
+  buildStitch();
+</script>
+</body>
+</html>
