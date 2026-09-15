@@ -1,0 +1,18 @@
+{
+  "name": "virtual-tryon-mvp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Virtual Try-On for Boutiques - customer app + FASHN AI integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+} 
