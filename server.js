@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
-const { generateTryOn, getProvider } = require('./services/virtualTryOn');
+const virtualTryOn = require('./services/virtualTryOn');
 
 const app = express();
 
